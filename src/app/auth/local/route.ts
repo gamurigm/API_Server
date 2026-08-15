@@ -41,6 +41,7 @@ export async function POST(request: Request) {
   const origin = request.headers.get("origin");
   const fetchSite = request.headers.get("sec-fetch-site");
   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+  const localRequest = request.headers.get("x-local-login") === "1";
   const appOrigin = loopbackOrigin(process.env.NEXT_PUBLIC_APP_URL);
   const supabaseOrigin = loopbackOrigin(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const enabled = process.env.NODE_ENV !== "production" &&
@@ -56,9 +57,8 @@ export async function POST(request: Request) {
   const trustedOrigin = Boolean(origin && matchesLocalEndpoint(origin, appOrigin));
   const originIsSafe = origin === null || trustedOrigin;
   const fetchSiteIsSafe = fetchSite === null || fetchSite === "same-origin";
-  const sameOriginProven = trustedOrigin || fetchSite === "same-origin";
 
-  if (!originIsSafe || !fetchSiteIsSafe || !sameOriginProven ||
+  if (!localRequest || !originIsSafe || !fetchSiteIsSafe ||
       !contentType.startsWith("application/x-www-form-urlencoded")) {
     if (request.headers.get("accept")?.includes("text/html")) {
       return noStoreRedirect(new URL("/login?error=local_login_request_rejected", appOrigin));
@@ -72,14 +72,22 @@ export async function POST(request: Request) {
   const email = process.env.LOCAL_ADMIN_EMAIL;
   const password = process.env.LOCAL_ADMIN_PASSWORD;
   if (!email || !password) {
-    return noStoreRedirect(new URL("/login?error=local_login_not_configured", appOrigin));
+    return NextResponse.json(
+      { error: { code: "local_login_not_configured", message: "Local login is not configured" } },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    return noStoreRedirect(new URL("/login?error=local_login_failed", appOrigin));
+    return NextResponse.json(
+      { error: { code: "local_login_failed", message: "Local login failed" } },
+      { status: 401, headers: { "Cache-Control": "no-store" } },
+    );
   }
-  const redirectOrigin = origin && trustedOrigin ? new URL(origin).origin : appOrigin;
-  return noStoreRedirect(new URL("/", redirectOrigin));
+  return new NextResponse(null, {
+    status: 204,
+    headers: { "Cache-Control": "no-store" },
+  });
 }

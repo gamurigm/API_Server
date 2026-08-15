@@ -54,8 +54,12 @@ if (/name=["']password["']/u.test(loginSource) || loginSource.includes("LOCAL_AD
 if (!loginSource.includes('action="/auth/local"') || !loginSource.includes('method="post"')) {
   findings.push("login-button.tsx: local login must use an explicit POST form");
 }
+if (!loginSource.includes('"X-Local-Login": "1"') ||
+    !loginSource.includes("onSubmit={signInLocally}")) {
+  findings.push("login-button.tsx: local login must use the anti-CSRF request header");
+}
 if (!localRouteSource.includes('process.env.NODE_ENV !== "production"') ||
-    !localRouteSource.includes('sameOriginProven') ||
+    !localRouteSource.includes('request.headers.get("x-local-login") === "1"') ||
     !localRouteSource.includes('isLoopback(requestUrl.hostname)') ||
     !localRouteSource.includes('loopbackOrigin(process.env.NEXT_PUBLIC_APP_URL)')) {
   findings.push("auth/local: missing production, loopback, or same-origin guard");
