@@ -1,0 +1,35 @@
+# dependencies
+/node_modules
+
+# Next.js
+/.next
+/out
+
+# tests and coverage
+/coverage
+
+# local configuration and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+.gpusher_token
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Supabase local runtime
+/supabase/.branches
+/supabase/.temp
+
+# logs and editor files
+*.log
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
