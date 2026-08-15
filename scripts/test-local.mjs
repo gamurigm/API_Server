@@ -72,17 +72,34 @@ const crossOriginLogin = await fetch(`${gatewayUrl}/auth/local`, {
 });
 assert(crossOriginLogin.status === 403, `El POST cross-origin devolvió ${crossOriginLogin.status}, no 403`);
 
-const browserWithoutOrigin = await fetch(`${gatewayUrl}/auth/local`, {
+const forgedCrossOriginLogin = await fetch(`${gatewayUrl}/auth/local`, {
   method: "POST",
   headers: {
     "Content-Type": "application/x-www-form-urlencoded",
-    "Sec-Fetch-Site": "same-origin",
+    Origin: "https://attacker.invalid",
+    "Sec-Fetch-Site": "cross-site",
+    "X-Local-Login": "1",
   },
   body: "",
   redirect: "manual",
 });
 assert(
-  browserWithoutOrigin.status === 303,
+  forgedCrossOriginLogin.status === 403,
+  `El POST cross-origin con cabecera falsificada devolvió ${forgedCrossOriginLogin.status}, no 403`,
+);
+
+const browserWithoutOrigin = await fetch(`${gatewayUrl}/auth/local`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "Sec-Fetch-Site": "same-origin",
+    "X-Local-Login": "1",
+  },
+  body: "",
+  redirect: "manual",
+});
+assert(
+  browserWithoutOrigin.status === 204,
   `El navegador local sin cabecera Origin devolvió ${browserWithoutOrigin.status}`,
 );
 
@@ -93,11 +110,12 @@ const localLoginResponse = await fetch(`${gatewayUrl}/auth/local`, {
     "Content-Type": "application/x-www-form-urlencoded",
     Origin: gatewayOrigin,
     "Sec-Fetch-Site": "same-origin",
+    "X-Local-Login": "1",
   },
   body: "",
   redirect: "manual",
 });
-assert(localLoginResponse.status === 303, `El login local seguro devolvió ${localLoginResponse.status}`);
+assert(localLoginResponse.status === 204, `El login local seguro devolvió ${localLoginResponse.status}`);
 assert(
   localLoginResponse.headers.get("cache-control") === "no-store",
   "La respuesta de autenticación local puede almacenarse en caché",
@@ -157,6 +175,7 @@ console.log(JSON.stringify({
   portalLoginStatus: "ok",
   loginGetStatus: localLoginGet.status,
   crossOriginLoginStatus: crossOriginLogin.status,
+  forgedCrossOriginLoginStatus: forgedCrossOriginLogin.status,
   originlessBrowserStatus: browserWithoutOrigin.status,
   localSessionStatus: authenticatedPortal.status,
   sensitiveUrlSanitized: true,
