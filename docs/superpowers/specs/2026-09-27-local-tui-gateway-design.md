@@ -12,12 +12,13 @@ Refactor the Federated API Gateway into a local backend operated through an inte
 - Keep the consumer gateway HTTP API available locally.
 - Use a hosted Supabase project. The normal setup must not start or reset a local Supabase database.
 - Authenticate the TUI operator with Supabase Auth email and password. The TUI obtains the session through Supabase Auth and sends its access token to administrative API routes. The service-role key remains backend-only.
+- After Supabase Auth verifies the user, a backend bootstrap endpoint promotes that user's existing enabled profile to `admin` only when the verified email is in `ADMIN_EMAILS`. It never re-enables a disabled profile. Normal admin routes still require the allow-list and enabled admin profile checks.
 - Preserve existing admin allow-list/profile checks and consumer authentication (gateway API keys and RS256 JWTs).
 - Preserve existing administrative capabilities, including applications, identity providers, providers, routes, access policies, origins, Vault credentials, OpenAPI import, audit, and gateway API key management.
 
 ## Architecture
 
-The application has two local processes during development: the Next.js backend and the TUI client. The backend binds to loopback and serves both the existing consumer routes and administrative routes. The TUI connects to the backend URL (default `http://127.0.0.1:3006`), signs the operator into the hosted Supabase Auth project, and holds the resulting session in memory. Administrative requests carry the Supabase access token as a bearer token. The backend validates that token with Supabase Auth and applies the existing configured email allow-list and enabled-admin profile checks before performing any administrative operation.
+The application has two local processes during development: the Next.js backend and the TUI client. The backend binds to loopback and serves both the existing consumer routes and administrative routes. The TUI connects to the backend URL (default `http://127.0.0.1:3006`), signs the operator into the hosted Supabase Auth project, and holds the resulting session in memory. After sign-in, the TUI calls `POST /api/admin/session` with the access token. The backend validates the token with Supabase Auth, checks the verified email against `ADMIN_EMAILS`, and promotes the existing profile only when it is enabled. Administrative requests then carry the same bearer token. Every admin route validates it and requires both the configured email allow-list and an enabled admin profile before performing an operation.
 
 Only the backend uses `SUPABASE_SERVICE_ROLE_KEY`. The TUI uses the Supabase project URL and publishable key for operator sign-in. Supabase migrations remain explicit operator actions against the linked hosted project; application startup never applies migrations, resets a database, or seeds records.
 
@@ -28,6 +29,7 @@ The TUI is a terminal-only client with a navigable menu, forms, tabular lists, v
 - The TUI prompts for credentials without echoing the password and never writes access or refresh tokens to disk.
 - The local backend listens only on `127.0.0.1`; the TUI rejects non-loopback backend URLs by default. An explicit override is out of scope.
 - Administrative API authorization accepts the TUI's Supabase bearer token and validates it server-side. A caller-provided email or unverified JWT claims are never sufficient.
+- `POST /api/admin/session` is the only route that can promote an enabled profile, and only after server-side token validation and an `ADMIN_EMAILS` match. A disabled profile is rejected and remains disabled.
 - Existing `ADMIN_EMAILS` and enabled `profiles.role = 'admin'` checks remain required.
 - The TUI never receives the service-role key or upstream provider credentials.
 - Consumer gateway authentication, scopes, rate limits, network protections, and audit behavior remain intact.
