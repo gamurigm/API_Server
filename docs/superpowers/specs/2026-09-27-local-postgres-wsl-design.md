@@ -30,9 +30,11 @@ El Node, npm y las dependencias de la aplicación se ejecutan dentro de Ubuntu W
 
 La TUI pide la contraseña sin mostrarla y la envía una vez al endpoint local de sesión. El backend la compara con el hash configurado usando `crypto.scrypt` y comparación de tiempo constante. Si es válida, crea un bearer aleatorio de corta duración guardado solo en memoria. Las rutas administrativas validan el bearer en el backend. La sesión no es una identidad de usuario y no persiste en disco ni en PostgreSQL.
 
+El endpoint de inicio de sesión limita el proceso a cinco verificaciones por minuto; el siguiente intento recibe `429` con `Retry-After` antes de ejecutar scrypt. Un inicio válido reinicia el límite.
+
 El backend escribe y lee credenciales upstream usando la API de HashiCorp Vault. Vault corre como servicio local en WSL, con backend de almacenamiento persistente `file`, motor KV v2 montado en `secret/` y listener ligado a `127.0.0.1:43872` por defecto (`VAULT_ADDR` es configurable). No se usa modo `-dev`, porque su almacenamiento está en memoria y pierde los secretos al detenerse. Tras reiniciar WSL/Vault, el operador lo desbloquea manualmente con sus claves de unseal. La aplicación usa un token local separado con una policy de mínimos privilegios para crear, leer, actualizar y borrar secretos bajo `secret/data/gateway/*` y borrar sus metadatos bajo `secret/metadata/gateway/*`; nunca usa el token root. La dirección y el token de aplicación permanecen en el entorno local del backend y no se envían a la TUI.
 
-Cada credencial tiene una ruta única de Vault. Al crear o reemplazar una credencial, el backend coordina las escrituras en Vault y PostgreSQL: guarda primero el secreto, actualiza los metadatos en una transacción y elimina el secreto recién creado si la transacción falla. Al retirar una credencial, elimina también sus metadatos y versiones de KV v2; si Vault no está disponible, la acción falla con un error claro y permite reintento. Los valores secretos solo se usan al construir solicitudes upstream y nunca se devuelven en listados administrativos ni se escriben en logs.
+Cada credencial tiene una ruta única de Vault. Al crear o reemplazar una credencial, el backend coordina las escrituras en Vault y PostgreSQL: guarda primero el secreto, actualiza los metadatos en una transacción y elimina el secreto recién creado si la transacción falla. Si también falla esa compensación, registra la ruta en una cola durable de PostgreSQL para que `vault:cleanup` la procese; si PostgreSQL no está disponible, el log deja el ID que acepta `vault:recover`. Al retirar una credencial, elimina también sus metadatos y versiones de KV v2; si Vault no está disponible, la acción falla con un error claro y permite reintento. Los valores secretos solo se usan al construir solicitudes upstream y nunca se devuelven en listados administrativos ni se escriben en logs.
 
 PostgreSQL corre en WSL y escucha en loopback, en el puerto local `5434` ya provisionado. La API en WSL se conecta directamente a `127.0.0.1:5434`; no necesita atravesar el reenvío Windows↔WSL. El archivo local del backend configura `DATABASE_URL`, `VAULT_ADDR`, `VAULT_TOKEN`, `ADMIN_PASSWORD_HASH` y `GATEWAY_HTTP_PORT`. La TUI conserva solo `LOCAL_API_URL=http://127.0.0.1:43871` (ajustable si se cambia el puerto). `localhostForwarding=true` permite que la TUI de Windows alcance la API de WSL.
 
@@ -65,8 +67,10 @@ Se eliminan Next.js, React, el adaptador de Next, configuración y tipos de Next
 - Configuración ausente o malformada informa el nombre de la variable, nunca su valor.
 - Un error de conexión PostgreSQL devuelve una respuesta de servicio no disponible en las rutas HTTP y un mensaje accionable durante el inicio.
 - Contraseña inválida, sesión ausente o sesión expirada devuelve 401 sin consultar datos administrativos.
+- Los intentos de inicio de sesión por encima del límite devuelven 429 y `Retry-After` antes de ejecutar scrypt.
 - La API y la TUI rechazan URLs que no sean loopback por defecto.
 - Consultas SQL usan parámetros; operaciones que reemplazan credenciales y actualizan metadatos son transaccionales.
+- La limpieza automática de Vault acepta solo un `DATABASE_URL` PostgreSQL loopback; las rutas huérfanas tienen cola durable y recuperación manual por ID.
 - El pool y el servidor HTTP se cierran correctamente al terminar el proceso. Ninguna migración destructiva o inicialización de datos ocurre de forma implícita.
 - La API, Vault y PostgreSQL se vinculan a loopback y permiten configurar puertos sin usar los puertos web predeterminados 80/443 ni el puerto API típico 3000.
 - La TUI global se ejecuta con Node y dependencias de WSL; no carga módulos nativos instalados para Windows.
@@ -93,6 +97,7 @@ Se eliminan Next.js, React, el adaptador de Next, configuración y tipos de Next
 - El backend conecta a PostgreSQL estándar en WSL mediante un rol técnico.
 - Las migraciones construyen el esquema del gateway en una base nueva y vacía, con las operaciones de rate limit y leases seguras frente a concurrencia.
 - Las credenciales upstream se almacenan en Vault persistente con un token de servicio restringido y nunca aparecen en respuestas de listado o logs.
+- El login limita las verificaciones de contraseña y los secretos huérfanos de Vault se pueden reintentar desde la cola o recuperar por ID.
 - Las capacidades actuales de administración y la autenticación/contrato de consumidores se preservan.
 - La guía explica la configuración de WSL/PostgreSQL, creación del rol/base, generación del hash de contraseña, migración explícita, arranque y operación TUI.
 - La guía explica la instalación/configuración de Vault con almacenamiento persistente, listener loopback, inicialización, resguardo de claves de unseal, policy/token restringido, desbloqueo tras reinicio y operación KV v2; excluye Vault `-dev`.

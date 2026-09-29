@@ -1,7 +1,5 @@
-import "server-only";
-
 import { GatewayError } from "@/lib/errors";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { isAllowedOrigin } from "@/lib/db/consumer";
 
 const CORS_HEADERS = "Authorization, Content-Type, Idempotency-Key";
 const CORS_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
@@ -51,14 +49,13 @@ export async function corsHeadersForRequest(
   const origin = originFromRequest(request);
   if (!origin) return {};
 
-  let query = createAdminClient()
-    .from("application_origins")
-    .select("consumer_application_id")
-    .eq("origin", origin)
-    .eq("enabled", true);
-  if (applicationId) query = query.eq("consumer_application_id", applicationId);
-  const { data, error } = await query.limit(1).maybeSingle();
-  if (error || !data) {
+  let allowed = false;
+  try {
+    allowed = await isAllowedOrigin(origin, applicationId);
+  } catch {
+    throw new GatewayError(503, "origin_store_unavailable", "Origin configuration is unavailable", false);
+  }
+  if (!allowed) {
     throw new GatewayError(403, "origin_not_allowed", "Browser origin is not registered for this application");
   }
 

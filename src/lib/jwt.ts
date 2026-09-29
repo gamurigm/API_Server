@@ -1,15 +1,15 @@
-import "server-only";
-
 import {
   createRemoteJWKSet,
   customFetch,
 } from "jose";
 
 import { getServerEnv } from "@/lib/env";
+import { API_KEY_PREFIX } from "@/lib/api-key-core";
+import { verifyApiKey } from "@/lib/api-keys";
 import { GatewayError } from "@/lib/errors";
 import { inspectRs256Token, verifyRs256Token } from "@/lib/jwt-core";
 import { assertPublicProviderUrl } from "@/lib/network-security";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { findEnabledApplication, findIdentityProviders, recordExternalPrincipal } from "@/lib/db/consumer";
 import type {
   ConsumerApplication,
   ExternalPrincipal,
@@ -63,18 +63,13 @@ export function extractBearerToken(request: Request): string {
 export async function verifyExternalToken(token: string): Promise<ExternalPrincipal> {
   const { issuer, subject, audiences } = inspectRs256Token(token);
 
-  const admin = createAdminClient();
-  const { data: providers, error: providerError } = await admin
-    .from("identity_providers")
-    .select("*")
-    .eq("issuer", issuer)
-    .eq("enabled", true);
-
-  if (providerError) {
+  let providers: IdentityProvider[];
+  try {
+    providers = await findIdentityProviders(issuer);
+  } catch {
     throw new GatewayError(503, "identity_store_unavailable", "Identity configuration is unavailable", false);
   }
-
-  const identityProviders = ((providers as IdentityProvider[] | null) ?? []).filter((candidate) =>
+  const identityProviders = providers.filter((candidate) =>
     candidate.audiences.some((audience) => audiences.includes(audience)),
   );
   if (identityProviders.length === 0) {
@@ -85,13 +80,13 @@ export async function verifyExternalToken(token: string): Promise<ExternalPrinci
   }
   const [identityProvider] = identityProviders;
 
-  const { data: applicationData, error: applicationError } = await admin
-    .from("consumer_applications")
-    .select("*")
-    .eq("id", identityProvider.consumer_application_id)
-    .eq("enabled", true)
-    .maybeSingle();
-  if (applicationError || !applicationData) {
+  let applicationData: ConsumerApplication | null;
+  try {
+    applicationData = await findEnabledApplication(identityProvider.consumer_application_id);
+  } catch {
+    throw new GatewayError(503, "identity_store_unavailable", "Application verification is unavailable", false);
+  }
+  if (!applicationData) {
     throw new GatewayError(403, "application_disabled", "The consuming application is disabled");
   }
 
@@ -107,22 +102,19 @@ export async function verifyExternalToken(token: string): Promise<ExternalPrinci
   const scopes = stringClaimValues(claims[identityProvider.scopes_claim]);
   const roles = stringClaimValues(claims[identityProvider.roles_claim]);
 
-  const { error: principalError } = await admin.from("external_principals").upsert(
-    {
-      consumer_application_id: application.id,
-      identity_provider_id: identityProvider.id,
+  try {
+    await recordExternalPrincipal({
+      applicationId: application.id,
+      identityProviderId: identityProvider.id,
       issuer,
       subject,
-      last_scopes: scopes,
-      last_roles: roles,
-      last_seen_at: new Date().toISOString(),
-    },
-    { onConflict: "identity_provider_id,subject" },
-  );
-  if (principalError) {
+      scopes,
+      roles,
+    });
+  } catch {
     // Authentication succeeded; a transient audit/profile write must not turn
     // the valid request into an authentication failure.
-    console.error("external_principal_upsert_failed", { code: principalError.code });
+    console.error("external_principal_upsert_failed", { code: "database_error" });
   }
 
   return {
@@ -137,5 +129,6 @@ export async function verifyExternalToken(token: string): Promise<ExternalPrinci
 }
 
 export async function authenticateExternalRequest(request: Request): Promise<ExternalPrincipal> {
-  return verifyExternalToken(extractBearerToken(request));
+  const token = extractBearerToken(request);
+  return token.startsWith(API_KEY_PREFIX) ? verifyApiKey(token) : verifyExternalToken(token);
 }

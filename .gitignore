@@ -1,9 +1,9 @@
 # dependencies
 /node_modules
 
-# Next.js
-/.next
-/out
+# Supabase local runtime state (may contain local secrets)
+/supabase/.branches/
+/supabase/.temp/
 
 # tests and coverage
 /coverage
@@ -19,10 +19,6 @@
 *.p12
 *.pfx
 
-# Supabase local runtime
-/supabase/.branches
-/supabase/.temp
-
 # logs and editor files
 *.log
 .DS_Store
@@ -32,4 +28,6 @@ Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
-next-env.d.ts
+
+# Stale generated output from the removed Next.js checkout
+/.next

@@ -1,15 +1,15 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTypeScript from "eslint-config-next/typescript";
+import tseslint from "typescript-eslint";
+import globals from "globals";
 
 export default defineConfig([
-  ...nextVitals,
-  ...nextTypeScript,
+  ...tseslint.configs.recommended,
+  {
+    files: ["**/*.{js,mjs,ts}"],
+    languageOptions: { globals: { ...globals.node, ...globals.es2022 } },
+  },
   globalIgnores([
     ".next/**",
     "coverage/**",
-    "next-env.d.ts",
-    "supabase/.branches/**",
-    "supabase/.temp/**",
   ]),
 ]);

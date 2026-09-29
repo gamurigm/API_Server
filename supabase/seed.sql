@@ -1,2 +1,0 @@
--- Intentionally empty. Add the first administrator to ADMIN_EMAILS before
--- signing in through Google OAuth; the callback creates their admin profile.

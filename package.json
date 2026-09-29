@@ -3,42 +3,52 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "gateway-tui": "scripts/gateway-tui.mjs"
+  },
   "description": "Gateway federado para consumir APIs externas con JWT RS256 existentes.",
   "engines": {
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "next dev",
-    "dev:local": "next dev --hostname 127.0.0.1 --port 3006",
+    "dev": "node --env-file=.env.local --import tsx src/server/main.ts",
+    "dev:local": "node --env-file=.env.local --import tsx src/server/main.ts",
+    "tui": "node --env-file=.env.tui.local scripts/run-tui.mjs",
+    "db:migrate": "node --env-file=.env.local scripts/db-migrate.mjs",
+    "vault:cleanup": "node --env-file=.env.local scripts/vault-cleanup.mjs",
+    "vault:recover": "node --env-file=.env.local scripts/vault-recover.mjs",
+    "admin:password": "node --env-file=.env.local --import tsx scripts/set-admin-password.mjs",
     "dev:fixture": "node scripts/local-fixture.mjs",
-    "local:setup": "node scripts/setup-local.mjs",
-    "local:test": "node scripts/test-local.mjs",
     "security:check": "node scripts/security-check.mjs",
-    "build": "next build",
-    "start": "next start",
+    "build": "tsc --noEmit",
+    "start": "node --env-file=.env.local --import tsx src/server/main.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run security:check && npm run lint && npm run typecheck && npm run test && npm run build"
+    "check": "npm run security:check && npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {
-    "@supabase/ssr": "0.12.4",
-    "@supabase/supabase-js": "2.112.3",
+    "@hono/node-server": "^2.1.1",
+    "hono": "^4.13.9",
+    "inquirer": "12.10.0",
     "jose": "6.2.8",
-    "next": "16.3.1",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "pg": "8.23.0",
     "yaml": "2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/node": "26.2.0",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4",
+    "@types/pg": "8.23.1",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.1",
+    "globals": "^17.12.0",
+    "tsx": "4.23.15",
     "typescript": "6.0.3",
+    "typescript-eslint": "^8.70.1",
     "vitest": "4.1.10"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "unrs-resolver@1.12.2": true
   }
 }

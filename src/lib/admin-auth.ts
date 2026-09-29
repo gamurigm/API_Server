@@ -1,47 +1,15 @@
-import "server-only";
-
-import type { User } from "@supabase/supabase-js";
-import { redirect } from "next/navigation";
-
-import { getAdminEmails } from "@/lib/env";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { isAdminSession } from "@/lib/admin-session";
 
 export interface AdminContext {
-  user: User;
-  email: string;
+  authorized: true;
 }
 
-export async function getAdminContext(): Promise<AdminContext | null> {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user?.email) {
-    return null;
-  }
-
-  const email = user.email.toLowerCase();
-  const explicitlyAllowed = getAdminEmails().has(email);
-  const admin = createAdminClient();
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("role, enabled")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!profile?.enabled || profile.role !== "admin" || !explicitlyAllowed) {
-    return null;
-  }
-
-  return { user, email };
+export function getAdminBearer(request: Request): string | null {
+  const authorization = request.headers.get("authorization");
+  return authorization && /^Bearer[ \t]+([A-Za-z0-9_-]{43})$/iu.exec(authorization)?.[1] || null;
 }
 
-export async function requireAdminPage(): Promise<AdminContext> {
-  const context = await getAdminContext();
-  if (!context) {
-    redirect("/login");
-  }
-  return context;
+export function getAdminContext(request: Request): AdminContext | null {
+  const bearer = getAdminBearer(request);
+  return bearer && isAdminSession(bearer) ? { authorized: true } : null;
 }

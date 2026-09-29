@@ -1,0 +1,10 @@
+[Unit]
+Description=Renew local API gateway Vault token every six hours
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=6h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

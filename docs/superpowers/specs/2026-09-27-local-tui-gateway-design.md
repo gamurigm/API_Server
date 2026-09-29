@@ -1,5 +1,7 @@
 # Local TUI Gateway Design
 
+> **Superseded:** this design describes an earlier Next.js and hosted Supabase architecture. The active design is `docs/superpowers/specs/2026-09-27-local-postgres-wsl-design.md`; do not implement this document.
+
 ## Purpose
 
 Refactor the Federated API Gateway into a local backend operated through an interactive terminal UI. Consumer applications continue to call the gateway over HTTP on the same machine. The gateway connects to an online Supabase project for authentication, configuration, Vault secrets, rate limits, and audit data.

@@ -1,7 +1,3 @@
-import { NextResponse } from "next/server";
-
-import type { GatewayErrorBody } from "@/types/gateway";
-
 export class GatewayError extends Error {
   constructor(
     public readonly status: number,
@@ -19,7 +15,7 @@ export function gatewayErrorResponse(
   error: unknown,
   requestId: string,
   extraHeaders?: HeadersInit,
-): NextResponse<GatewayErrorBody> {
+): Response {
   const known = error instanceof GatewayError;
   const status = known ? error.status : 500;
   const code = known ? error.code : "internal_error";
@@ -31,7 +27,7 @@ export function gatewayErrorResponse(
   headers.set("Cache-Control", "no-store");
   headers.set("X-Gateway-Request-Id", requestId);
 
-  return NextResponse.json(
+  return Response.json(
     { error: { code, message, requestId } },
     {
       status,
@@ -40,15 +36,15 @@ export function gatewayErrorResponse(
   );
 }
 
-export function adminErrorResponse(error: unknown): NextResponse {
+export function adminErrorResponse(error: unknown): Response {
   if (error instanceof GatewayError) {
-    return NextResponse.json(
+    return Response.json(
       { error: { code: error.code, message: error.message } },
       { status: error.status },
     );
   }
 
-  return NextResponse.json(
+  return Response.json(
     { error: { code: "internal_error", message: "Unexpected server error" } },
     { status: 500 },
   );

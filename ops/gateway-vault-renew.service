@@ -1,0 +1,7 @@
+[Unit]
+Description=Renew local API gateway Vault token
+After=vault.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/gateway-vault-renew

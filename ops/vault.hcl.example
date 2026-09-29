@@ -1,0 +1,11 @@
+ui = false
+disable_mlock = true
+
+storage "file" {
+  path = "/opt/vault/data"
+}
+
+listener "tcp" {
+  address = "127.0.0.1:43872"
+  tls_disable = 1
+}

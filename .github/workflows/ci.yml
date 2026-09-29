@@ -21,8 +21,6 @@ jobs:
       - run: npm test
       - run: npm run build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_build_only
-          NEXT_PUBLIC_APP_URL: http://localhost:3000
-          SUPABASE_SERVICE_ROLE_KEY: sb_secret_build_only
-          ADMIN_EMAILS: admin@example.com
+          DATABASE_URL: postgresql://gateway:build_only@127.0.0.1:5434/gateway
+          VAULT_ADDR: http://127.0.0.1:43872/
+          VAULT_TOKEN: build_only

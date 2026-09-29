@@ -15,13 +15,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
     "paths": {
       "@/*": [
         "./src/*"
@@ -29,14 +23,15 @@
     }
   },
   "include": [
-    "next-env.d.ts",
-    ".next/types/**/*.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    "vitest.config.ts",
-    ".next/dev/types/**/*.ts"
+    "src/server/**/*.ts",
+    "src/http/**/*.ts",
+    "src/lib/**/*.ts",
+    "src/tui/**/*.ts",
+    "scripts/**/*.mjs",
+    "vitest.config.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next/**"
   ]
 }

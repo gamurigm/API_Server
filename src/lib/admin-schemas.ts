@@ -96,3 +96,12 @@ export const openApiImportSchema = z.object({
 export const enabledPatchSchema = z.object({
   enabled: z.boolean(),
 });
+
+export const applicationApiKeySchema = z.object({
+  consumer_application_id: z.uuid(),
+  label: z.string().trim().min(2).max(120),
+  scopes: z.array(z.string().trim().min(1).max(160)).max(30).default([]),
+  expires_at: z.iso.datetime({ offset: true }).refine(
+    (value) => Date.parse(value) > Date.now(), "Expiration must be in the future",
+  ).nullable().optional(),
+});

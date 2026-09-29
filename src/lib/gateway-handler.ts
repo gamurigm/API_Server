@@ -1,5 +1,3 @@
-import "server-only";
-
 import { getServerEnv } from "@/lib/env";
 import { GatewayError, gatewayErrorResponse } from "@/lib/errors";
 import {

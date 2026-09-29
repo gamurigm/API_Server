@@ -72,7 +72,7 @@ export interface CredentialMetadata {
   owner_type: "shared" | "application";
   consumer_application_id: string | null;
   label: string;
-  vault_secret_id: string;
+  vault_path: string;
   enabled: boolean;
   created_at: string;
   updated_at: string;
@@ -80,7 +80,8 @@ export interface CredentialMetadata {
 
 export interface ExternalPrincipal {
   applicationId: string;
-  identityProviderId: string;
+  identityProviderId: string | null;
+  apiKeyId?: string;
   issuer: string;
   subject: string;
   scopes: string[];

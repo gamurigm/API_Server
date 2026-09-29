@@ -1,5 +1,7 @@
 # Local TUI Gateway Implementation Plan
 
+> **Superseded:** this plan describes Next.js and hosted Supabase. The active design is `docs/superpowers/specs/2026-09-27-local-postgres-wsl-design.md` and the active plan is `docs/superpowers/plans/2026-09-27-local-postgres-vault.md`. Do not execute these steps.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the gateway's web administration portal with a local TUI while preserving the local HTTP gateway and using hosted Supabase.

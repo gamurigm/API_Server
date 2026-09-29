@@ -1,13 +1,9 @@
-import "server-only";
-
-import { NextResponse } from "next/server";
-
 import { getAdminContext } from "@/lib/admin-auth";
 
-export async function requireAdminApi(): Promise<NextResponse | null> {
-  const context = await getAdminContext();
+export async function requireAdminApi(request: Request): Promise<Response | null> {
+  const context = await getAdminContext(request);
   if (!context) {
-    return NextResponse.json(
+    return Response.json(
       { error: { code: "admin_unauthorized", message: "Administrator access required" } },
       { status: 401 },
     );
