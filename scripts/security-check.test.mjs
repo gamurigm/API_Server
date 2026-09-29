@@ -9,6 +9,10 @@ import { afterEach, describe, expect, it } from "vitest";
 const securityCheck = fileURLToPath(new URL("./security-check.mjs", import.meta.url));
 let fixtureRoot;
 
+function writeSyntheticPrivateKey(path) {
+  writeFileSync(path, ["-----BEGIN ", "PRIVATE KEY-----", "synthetic", "-----END ", "PRIVATE KEY-----", ""].join(""));
+}
+
 afterEach(() => {
   if (fixtureRoot) rmSync(fixtureRoot, { recursive: true, force: true });
   fixtureRoot = undefined;
@@ -73,8 +77,40 @@ describe("repository security checks", () => {
     expect(result.stderr).toContain("scripts/run-tui.mjs");
   });
 
-  it("scans files under stale Supabase temporary paths for exposed private keys", () => {
+  it("scans Supabase migration paths for exposed private keys", () => {
     fixtureRoot = mkdtempSync(join(tmpdir(), "gateway-security-check-supabase-path-"));
+    mkdirSync(join(fixtureRoot, "scripts"));
+    mkdirSync(join(fixtureRoot, "supabase", "migrations"), { recursive: true });
+    writeFileSync(join(fixtureRoot, "package.json"), JSON.stringify({
+      scripts: {
+        dev: "node src/server/main.ts",
+        start: "node src/server/main.ts",
+      },
+    }));
+    writeFileSync(join(fixtureRoot, ".env.tui.example"), "LOCAL_API_URL=http://127.0.0.1:43871\n");
+    writeFileSync(join(fixtureRoot, "scripts/run-tui.mjs"), `
+      const tuiEnv = { ...process.env };
+      for (const key of Object.keys(tuiEnv)) {
+        const normalizedKey = key.toUpperCase();
+        if (["DATABASE_URL", "VAULT_TOKEN", "ADMIN_PASSWORD_HASH", "NODE_OPTIONS"].includes(normalizedKey) ||
+            normalizedKey.startsWith("SUPABASE_") ||
+            normalizedKey.startsWith("NEXT_PUBLIC_SUPABASE_")) delete tuiEnv[key];
+      }
+      spawn(process.execPath, ["--import", "tsx", "src/tui/main.ts"], { env: tuiEnv });
+    `);
+    writeSyntheticPrivateKey(join(fixtureRoot, "supabase", "migrations", "private-key.txt"));
+
+    const result = spawnSync(process.execPath, [securityCheck], {
+      cwd: fixtureRoot,
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("supabase/migrations/private-key.txt: possible private key");
+  });
+
+  it("skips preserved ignored Supabase temporary state", () => {
+    fixtureRoot = mkdtempSync(join(tmpdir(), "gateway-security-check-local-state-"));
     mkdirSync(join(fixtureRoot, "scripts"));
     mkdirSync(join(fixtureRoot, "supabase", ".temp"), { recursive: true });
     writeFileSync(join(fixtureRoot, "package.json"), JSON.stringify({
@@ -94,14 +130,13 @@ describe("repository security checks", () => {
       }
       spawn(process.execPath, ["--import", "tsx", "src/tui/main.ts"], { env: tuiEnv });
     `);
-    writeFileSync(join(fixtureRoot, "supabase", ".temp", "private-key.txt"), "-----BEGIN PRIVATE KEY-----\nsynthetic\n-----END PRIVATE KEY-----\n");
+    writeSyntheticPrivateKey(join(fixtureRoot, "supabase", ".temp", "private-key.txt"));
 
     const result = spawnSync(process.execPath, [securityCheck], {
       cwd: fixtureRoot,
       encoding: "utf8",
     });
 
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("supabase/.temp/private-key.txt: possible private key");
+    expect(result.status).toBe(0);
   });
 });

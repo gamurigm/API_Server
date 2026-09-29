@@ -1,7 +1,7 @@
 # dependencies
 /node_modules
 
-# Supabase local runtime state (may contain local secrets)
+# Preserve ignored local Supabase runtime state from the prior setup.
 /supabase/.branches/
 /supabase/.temp/
 

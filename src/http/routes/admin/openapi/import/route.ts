@@ -8,6 +8,47 @@ import { adminErrorResponse, GatewayError } from "@/lib/errors";
 import { parseRequestJson } from "@/lib/request-json";
 
 const METHODS = ["get", "post", "put", "patch", "delete"] as const;
+const DATABASE_CONNECTION_CODES = new Set([
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "EPIPE",
+  "57P01",
+  "57P02",
+  "57P03",
+  "53300",
+]);
+
+function postgresErrorCode(error: unknown): string | null {
+  if (typeof error !== "object" || error === null || !("code" in error)) return null;
+  return typeof error.code === "string" ? error.code : null;
+}
+
+function isDatabaseUnavailable(error: unknown): boolean {
+  let cause = error;
+  while (cause instanceof Error) {
+    const code = postgresErrorCode(cause);
+    if (code?.startsWith("08") || (code && DATABASE_CONNECTION_CODES.has(code)) ||
+      cause.message === "timeout exceeded when trying to connect") {
+      return true;
+    }
+    cause = cause.cause;
+  }
+  return false;
+}
+
+function isDatabaseConstraintViolation(error: unknown): boolean {
+  let cause = error;
+  while (cause instanceof Error) {
+    if (postgresErrorCode(cause)?.startsWith("23")) return true;
+    cause = cause.cause;
+  }
+  return false;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -94,7 +135,11 @@ export async function POST(request: Request) {
     try {
       const imported = await importOpenApiRoutes(routes);
       return Response.json({ data: { imported } }, { status: 201 });
-    } catch {
+    } catch (error) {
+      if (isDatabaseUnavailable(error)) {
+        throw new GatewayError(503, "database_error", "OpenAPI routes could not be imported because the database is unavailable");
+      }
+      if (!isDatabaseConstraintViolation(error)) throw error;
       throw new GatewayError(400, "openapi_import_failed", "OpenAPI routes could not be imported");
     }
   } catch (error) {

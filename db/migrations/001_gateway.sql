@@ -6,7 +6,7 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  new.updated_at = timezone('utc', now());
+  new.updated_at = now();
   return new;
 end;
 $$;
@@ -18,8 +18,8 @@ create table public.consumer_applications (
   description text,
   enabled boolean not null default true,
   rate_limit_per_minute integer not null default 60 check (rate_limit_per_minute between 1 and 100000),
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now())
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table public.identity_providers (
@@ -32,8 +32,8 @@ create table public.identity_providers (
   scopes_claim text not null default 'scope',
   roles_claim text not null default 'roles',
   enabled boolean not null default true,
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now()),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   unique (consumer_application_id, issuer)
 );
 
@@ -54,8 +54,8 @@ create table public.providers (
   sse_timeout_ms integer not null default 300000 check (sse_timeout_ms between 1000 and 300000),
   rate_limit_per_minute integer not null default 60 check (rate_limit_per_minute between 1 and 100000),
   enabled boolean not null default true,
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now())
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table public.provider_routes (
@@ -71,8 +71,8 @@ create table public.provider_routes (
   supports_sse boolean not null default false,
   enabled boolean not null default true,
   source text not null default 'manual' check (source in ('manual', 'openapi')),
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now()),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   unique (provider_id, method, path_template)
 );
 
@@ -86,8 +86,8 @@ create table public.application_provider_access (
   provider_id uuid not null references public.providers(id) on delete cascade,
   enabled boolean not null default true,
   rate_limit_per_minute integer check (rate_limit_per_minute between 1 and 100000),
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now()),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   unique (consumer_application_id, provider_id)
 );
 
@@ -96,8 +96,8 @@ create table public.application_origins (
   consumer_application_id uuid not null references public.consumer_applications(id) on delete cascade,
   origin text not null,
   enabled boolean not null default true,
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now()),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   unique (consumer_application_id, origin)
 );
 
@@ -109,8 +109,8 @@ create table public.credentials (
   label text not null,
   vault_path text not null unique check (vault_path ~ '^gateway/credentials/[0-9a-f-]{36}$'),
   enabled boolean not null default true,
-  created_at timestamptz not null default timezone('utc', now()),
-  updated_at timestamptz not null default timezone('utc', now()),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
   check (
     (owner_type = 'shared' and consumer_application_id is null)
     or
@@ -134,8 +134,8 @@ create table public.external_principals (
   subject text not null,
   last_scopes text[] not null default '{}',
   last_roles text[] not null default '{}',
-  first_seen_at timestamptz not null default timezone('utc', now()),
-  last_seen_at timestamptz not null default timezone('utc', now()),
+  first_seen_at timestamptz not null default now(),
+  last_seen_at timestamptz not null default now(),
   unique (identity_provider_id, subject)
 );
 
@@ -154,7 +154,7 @@ create table public.stream_leases (
   provider_id uuid not null references public.providers(id) on delete cascade,
   subject text not null,
   expires_at timestamptz not null,
-  created_at timestamptz not null default timezone('utc', now())
+  created_at timestamptz not null default now()
 );
 
 create index stream_leases_active_idx
@@ -178,7 +178,7 @@ create table public.invocations (
   upstream_status integer,
   duration_ms integer not null default 0,
   response_bytes bigint,
-  created_at timestamptz not null default timezone('utc', now())
+  created_at timestamptz not null default now()
 );
 
 create index invocations_created_at_idx on public.invocations (created_at desc);
@@ -226,7 +226,7 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_window timestamptz := date_trunc('minute', timezone('utc', now()));
+  v_window timestamptz := date_trunc('minute', now());
   v_count integer;
 begin
   if p_limit < 1 then
@@ -288,13 +288,13 @@ begin
     )
   );
 
-  delete from public.stream_leases where expires_at <= timezone('utc', now());
+  delete from public.stream_leases where expires_at <= now();
   select count(*) into v_active
   from public.stream_leases
   where consumer_application_id = p_consumer_application_id
     and provider_id = p_provider_id
     and subject = p_subject
-    and expires_at > timezone('utc', now());
+    and expires_at > now();
 
   if v_active >= p_limit then
     return null;
@@ -309,7 +309,7 @@ begin
     p_consumer_application_id,
     p_provider_id,
     p_subject,
-    timezone('utc', now()) + make_interval(secs => p_ttl_seconds)
+    now() + make_interval(secs => p_ttl_seconds)
   ) returning id into v_id;
   return v_id;
 end;

@@ -7,7 +7,21 @@ Gateway HTTP local para consumir APIs externas con claves del gateway o JWT RS25
 Requiere Node.js 22+, npm, WSL Ubuntu, PostgreSQL y Vault. El servidor HTTP usa Hono directamente y se ejecuta en WSL, enlazado a `127.0.0.1:43871`; PostgreSQL escucha en `5434` y Vault en `127.0.0.1:43872`. Consulta `pg_lsclusters` en WSL si cambia el puerto. La base local `api_gateway_local` comienza vacía. La raíz HTTP devuelve JSON; no hay interfaz web activa.
 
 1. Crea `.env.local` a partir de [.env.example](.env.example) y `.env.tui.local` a partir de [.env.tui.example](.env.tui.example). Ambos son privados e ignorados por Git. El TUI solo necesita `LOCAL_API_URL=http://127.0.0.1:43871`.
-2. En Ubuntu WSL, configura `DATABASE_URL` con la contraseña del rol PostgreSQL local y `VAULT_TOKEN` con el token de aplicación de política limitada. La política `gateway-credentials` permite administrar solo las credenciales upstream. Ejecuta `npm run admin:password`: solicita la contraseña dos veces sin mostrarla e imprime una línea `ADMIN_PASSWORD_HASH=...`; copia esa línea a `.env.local`. El hash scrypt queda en el entorno privado del backend, nunca en Vault. Para restablecerla, repite el comando y reemplaza la línea del hash; reinicia el backend para que cargue el nuevo valor.
+2. Para un clúster PostgreSQL nuevo, crea el rol técnico y la base desde Ubuntu WSL. `createuser --pwprompt` solicita la contraseña sin incluirla en el comando:
+
+   ```sh
+   sudo -u postgres createuser --pwprompt api_gateway_app
+   sudo -u postgres createdb --owner=api_gateway_app api_gateway_local
+   ```
+
+   Limita `pg_hba.conf` a ese rol y base por TCP. Usa `sudo -u postgres psql -Atc 'SHOW hba_file;'` para encontrar el archivo. Conserva `local all postgres peer`; elimina las reglas generales `local all all peer` y `host all all` para loopback, y agrega estas reglas antes de las reglas de replicación:
+
+   ```conf
+   host api_gateway_local api_gateway_app 127.0.0.1/32 scram-sha-256
+   host api_gateway_local api_gateway_app ::1/128 scram-sha-256
+   ```
+
+   Recarga el clúster con `sudo pg_ctlcluster <versión> <cluster> reload` después de editarlo. En `.env.local`, configura `DATABASE_URL` con la contraseña del rol y `VAULT_TOKEN` con el token de aplicación de política limitada. La política `gateway-credentials` permite administrar solo las credenciales upstream. Ejecuta `npm run admin:password`: solicita la contraseña dos veces sin mostrarla e imprime una línea `ADMIN_PASSWORD_HASH=...`; copia esa línea a `.env.local`. El hash scrypt queda en el entorno privado del backend, nunca en Vault. Para restablecerla, repite el comando y reemplaza la línea del hash; reinicia el backend para que cargue el nuevo valor.
 3. En Ubuntu WSL, desde la carpeta del checkout, instala las dependencias Linux y aplica las migraciones a la base local:
 
    ```sh

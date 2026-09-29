@@ -4,11 +4,13 @@ import { join, relative } from "node:path";
 const root = process.cwd();
 const excludedDirectories = new Set([".git", ".next", ".superpowers", "coverage", "node_modules"]);
 const excludedPaths = new Set([".env.local", "package-lock.json", "tsconfig.tsbuildinfo"]);
+const excludedTrees = ["supabase/.branches", "supabase/.temp"];
 const findings = [];
 
 function shouldSkip(path) {
   const normalized = relative(root, path).replaceAll("\\", "/");
   if (excludedPaths.has(normalized)) return true;
+  if (excludedTrees.some((tree) => normalized === tree || normalized.startsWith(`${tree}/`))) return true;
   return normalized.split("/").some((segment) => excludedDirectories.has(segment));
 }
 

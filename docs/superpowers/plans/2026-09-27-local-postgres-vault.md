@@ -52,7 +52,7 @@
 - [x] **Step 2:** Add `pg` and its TypeScript types, `DATABASE_URL` validation, the pool/transaction helpers, and an explicit migration command. Keep build independent of a live database.
 - [x] **Step 3:** Write the initial SQL migration with UUID generation, foreign keys, unique/partial indexes, update triggers, API-key revocation protection, atomic `consume_rate_limit`, and advisory-locked stream lease functions; omit Supabase-specific grants and functions.
 - [x] **Step 4:** Review the SQL for revoked-key and concurrency invariants. Run `npm run typecheck` and `npm test`; inspect their exit status.
-- [ ] **Step 5:** Review this task's scoped diff. Keep the working tree unstaged and uncommitted unless integration is requested.
+- [x] **Step 5:** Review this task's scoped diff. Keep the working tree unstaged and uncommitted unless integration is requested.
 
 ### Task 2: Consumer gateway database access
 
@@ -69,7 +69,7 @@
 - [x] **Step 1:** Replace Supabase `.from()`/`.rpc()` calls in the listed consumer paths with parameterized PostgreSQL queries through Task 1's pool.
 - [x] **Step 2:** Preserve the exact enabled/scopes/issuer/audience checks, immediate API-key revocation, gateway error envelope, audit fields, and rate-limit/lease behavior.
 - [x] **Step 3:** Review a revoked/expired key path and the concurrent rate-limit/lease SQL by inspection. Run `npm run lint` and `npm run typecheck` and record any remaining references that belong to later tasks.
-- [ ] **Step 4:** Review this task's scoped diff. Keep the working tree unstaged and uncommitted unless integration is requested.
+- [x] **Step 4:** Review this task's scoped diff. Keep the working tree unstaged and uncommitted unless integration is requested.
 
 ### Task 3: Local HashiCorp Vault credential store
 
@@ -125,7 +125,7 @@
 - [x] **Step 1:** Replace the listed Supabase operations with repository functions, preserving ordering, filters, insert defaults, status codes, and error envelopes.
 - [x] **Step 2:** Keep generic update/delete resource names and fields allowlisted, and preserve the existing request schemas and per-route authorization order.
 - [x] **Step 3:** Review each administrative response against its current TUI screen consumer, then run `npm run lint` and `npm run typecheck`.
-- [ ] **Step 4:** Review this task's scoped diff. Keep the working tree unstaged and uncommitted unless integration is requested.
+- [x] **Step 4:** Review this task's scoped diff. Keep the working tree unstaged and uncommitted unless integration is requested.
 
 ### Task 6: API keys and OpenAPI import
 
@@ -141,7 +141,7 @@
 - [x] **Step 1:** Replace Supabase key CRUD and OpenAPI import calls with parameterized SQL while keeping current JSON and validation behavior.
 - [x] **Step 2:** Preserve key hash lookup and revocation protections, and make an import failure roll back all route changes for that provider.
 - [x] **Step 3:** Review key creation/listing/revocation and import failure paths by inspection. Run `npm run lint` and `npm run typecheck`.
-- [ ] **Step 4:** Review this task's scoped diff. Keep the working tree unstaged and uncommitted unless integration is requested.
+- [x] **Step 4:** Review this task's scoped diff. Keep the working tree unstaged and uncommitted unless integration is requested.
 
 ### Task 7: Provision persistent services in Ubuntu WSL
 
@@ -159,7 +159,7 @@
 - [x] **Step 2:** Install/configure PostgreSQL and Vault in Ubuntu WSL if absent. Create the empty gateway role/database, persistent Vault config, KV v2 mount, and least-privilege policy/token without exposing passwords, root token, or unseal keys in tool output or Git.
 - [x] **Step 3:** Initialize/unseal Vault and store recovery material in a private location outside the repository with restrictive permissions; document the location and manual unseal procedure for the operator. Generate the admin password hash through the hidden prompt and store only that hash in `.env.local`.
 - [x] **Step 4:** Apply `npm run db:migrate` explicitly to the new local database and check PostgreSQL and Vault health from WSL and Windows loopback. Do not target Supabase.
-- [ ] **Step 5:** Review the on-machine configuration and scoped repository diff. Keep the working tree unstaged and uncommitted unless integration is requested.
+- [x] **Step 5:** Review the on-machine configuration and scoped repository diff. Keep the working tree unstaged and uncommitted unless integration is requested.
 
 ### Task 8: Remove obsolete code and finish documentation
 
@@ -175,4 +175,4 @@
 - [x] **Step 1:** Remove remaining Supabase/browser code, Next.js configuration and generated types, plus any Next.js/React dependencies after the Hono routes replace their callers.
 - [x] **Step 2:** Update docs, examples, security scan, and CI for the local workflow, including manual Vault unseal, token rotation, database migration, and a secret-safe TUI launch.
 - [x] **Step 3:** Review `rg` results for obsolete runtime references, inspect `git diff --check`, then run `npm run security:check`, `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`.
-- [ ] **Step 4:** Review every changed/deleted path. Keep all changes unstaged and uncommitted unless integration is requested.
+- [x] **Step 4:** Review every changed/deleted path. Keep all changes unstaged and uncommitted unless integration is requested.

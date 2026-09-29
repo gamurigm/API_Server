@@ -11,5 +11,7 @@ export default defineConfig([
   globalIgnores([
     ".next/**",
     "coverage/**",
+    "supabase/.branches/**",
+    "supabase/.temp/**",
   ]),
 ]);
