@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { adminClientEnv } from "./admin-client-env.mjs";
 
 const exitCode = await new Promise((resolve, reject) => {
-  const child = spawn(process.execPath, ["--import", "tsx", "src/tui/main.ts"], {
+  const child = spawn(process.execPath, ["--import", "tsx", "src/cli/main.ts", ...process.argv.slice(2)], {
     cwd: fileURLToPath(new URL("../", import.meta.url)),
     env: adminClientEnv(),
     stdio: "inherit",

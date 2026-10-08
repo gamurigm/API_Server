@@ -1,6 +1,6 @@
 # Federated API Gateway
 
-Gateway HTTP local para consumir APIs externas con claves del gateway o JWT RS256. La administración se hace desde una TUI con una sola contraseña local, sin cuentas ni correo. PostgreSQL y HashiCorp Vault corren en Ubuntu WSL. El proyecto Supabase anterior no se modifica.
+Gateway HTTP local para consumir APIs externas con claves del gateway o JWT RS256. La administración se hace desde una TUI de pantalla completa o un CLI, ambos con una sola contraseña local y la misma API. PostgreSQL y HashiCorp Vault corren en Ubuntu WSL. El proyecto Supabase anterior no se modifica.
 
 ## Preparación
 
@@ -42,7 +42,7 @@ Requiere Node.js 22+, npm, WSL Ubuntu, PostgreSQL y Vault. El servidor HTTP usa 
    gateway-tui
    ```
 
-`gateway-tui` inicia la TUI dentro de Ubuntu WSL desde cualquier directorio. Para ejecutarla desde Ubuntu directamente, usa `npm run tui`. No inicies el backend con Node de Windows: sus dependencias nativas se instalan y ejecutan en WSL.
+`gateway-tui` abre la interfaz de pantalla completa dentro de Ubuntu WSL desde cualquier directorio. El comando `gateway` abre el CLI desde cualquier directorio; `gateway --help` muestra sus áreas y acciones. Para abrir la TUI desde el CLI, usa `gateway tui`. Desde Ubuntu también puedes ejecutar `npm run tui` o `npm run admin:cli -- --help`. El backend y sus dependencias se instalan y ejecutan en WSL.
 
 Ejecuta también `npm run vault:cleanup`, `npm run vault:recover -- <credential-id>` y cualquier otro comando `npm run` que opere PostgreSQL, Vault o el backend desde Ubuntu WSL y la carpeta del checkout.
 
@@ -63,7 +63,39 @@ El token del backend tiene vigencia renovable de 24 horas. `gateway-vault-renew.
 
 ## Uso y seguridad
 
-Desde el TUI registra aplicaciones consumidoras, proveedores, rutas, accesos, orígenes y credenciales. Puedes retirar una credencial de forma permanente; si Vault está inaccesible, queda inactiva y `npm run vault:cleanup` reintenta el borrado desde WSL. Una clave de acceso completa aparece solo al crearla; su hash se almacena en PostgreSQL y la revocación es permanente. Las credenciales upstream viven en Vault y nunca se devuelven en los listados administrativos.
+La TUI y el CLI administran aplicaciones, emisores JWT/JWKS, proveedores, rutas, accesos, orígenes, credenciales, claves de acceso, importación OpenAPI y auditoría. En la TUI, usa ↑/↓ y Enter para navegar; `c` crea, `e` edita, `t` activa o desactiva, `d` elimina, `v` revoca, `r` abre relaciones, `?` muestra la ayuda y `q` sale. Las aplicaciones y proveedores se desactivan en vez de eliminarse para preservar las relaciones y la limpieza de secretos.
+
+El CLI pide la contraseña de forma oculta y, para cambios, permite responder los campos interactivamente. Por ejemplo:
+
+```powershell
+gateway applications list --json
+gateway providers create
+gateway applications edit <id>
+gateway credentials delete <id>
+gateway api-keys revoke <id>
+gateway openapi import
+```
+
+| Área (`gateway <área> ...`) | Acciones |
+| --- | --- |
+| `applications` | `list`, `create`, `edit`, `enable`, `disable`, `toggle`; no se elimina |
+| `identity-providers` | `list`, `create`, `edit`, `enable`, `disable`, `toggle`, `delete` |
+| `providers` | `list`, `create`, `edit`, `enable`, `disable`, `toggle`; no se elimina |
+| `routes` | `list`, `create`, `edit`, `enable`, `disable`, `toggle`, `delete` |
+| `access` | `list`, `create`, `edit`, `enable`, `disable`, `toggle`, `delete` |
+| `origins` | `list`, `create`, `edit`, `enable`, `disable`, `toggle`, `delete` |
+| `credentials` | `list`, `create`, `enable`, `disable`, `toggle`, `delete` |
+| `api-keys` | `list`, `create`, `revoke` |
+| `openapi` | `import` |
+| `audit` | `list` (solo lectura) |
+
+Para automatizar, `--input-json` consume un objeto JSON desde stdin con la contraseña y los datos de la operación. Esta plantilla es solo la forma; sustituye los marcadores desde un gestor de secretos y no guardes contraseñas o secretos en archivos versionados:
+
+```json
+{"password":"<contraseña administrativa>","data":{"name":"<nombre>","slug":"<slug>","rate_limit_per_minute":60}}
+```
+
+No pases contraseñas ni secretos como argumentos. Usa `--yes` para confirmar eliminaciones/revocaciones no interactivas y `--json` para salida estructurada. El CLI crea y revoca una sesión administrativa por comando. Una clave de acceso completa aparece solo al crearla; su hash se almacena en PostgreSQL y la revocación es permanente. Las credenciales upstream viven en Vault y nunca se devuelven en los listados administrativos. Si Vault está inaccesible al retirar una credencial, queda inactiva y `npm run vault:cleanup` reintenta el borrado desde WSL.
 
 Los ejemplos de consumidores están en [docs/client-examples.md](docs/client-examples.md). El endpoint de proxy es `http://127.0.0.1:43871/api/v1/gateway/{provider}/{path}`. Los consumidores deben estar en el mismo equipo y enviar `Authorization: Bearer <clave-del-gateway-o-JWT-RS256>`. No distribuyas claves en frontends ni aplicaciones móviles.
 

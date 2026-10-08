@@ -13,6 +13,7 @@
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "incremental": true,
@@ -27,6 +28,9 @@
     "src/http/**/*.ts",
     "src/lib/**/*.ts",
     "src/tui/**/*.ts",
+    "src/tui/**/*.tsx",
+    "src/admin-client/**/*.ts",
+    "src/cli/**/*.ts",
     "scripts/**/*.mjs",
     "vitest.config.ts"
   ],

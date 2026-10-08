@@ -1,6 +1,20 @@
 import { queryOne, queryRows } from "@/lib/db/consumer";
 
 type Row = Record<string, unknown>;
+const publicProviderAuthFields = ["headerName", "queryName", "prefix"] as const;
+
+function sanitizeCatalogRow(resource: string, row: Row): Row {
+  if (resource !== "providers") return row;
+  const raw = row.auth_config;
+  const config = typeof raw === "object" && raw !== null && !Array.isArray(raw)
+    ? raw as Record<string, unknown>
+    : {};
+  const auth_config: Record<string, string> = {};
+  for (const field of publicProviderAuthFields) {
+    if (typeof config[field] === "string") auth_config[field] = config[field];
+  }
+  return { ...row, auth_config };
+}
 
 export function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === "23505";
@@ -41,8 +55,9 @@ export function createIdentityProvider(input: {
   );
 }
 
-export function listProviders(): Promise<Row[]> {
-  return queryRows("SELECT * FROM public.providers ORDER BY name");
+export async function listProviders(): Promise<Row[]> {
+  const rows = await queryRows<Row>("SELECT * FROM public.providers ORDER BY name");
+  return rows.map((row) => sanitizeCatalogRow("providers", row));
 }
 
 export function createProvider(input: {
@@ -155,7 +170,69 @@ export function isCatalogResource(value: string): value is keyof typeof resource
   return Object.hasOwn(resourceTables, value);
 }
 
-export function setResourceEnabled(resource: keyof typeof resourceTables, id: string, enabled: boolean): Promise<{ id: string; enabled: boolean } | null> {
-  const table = resourceTables[resource];
-  return queryOne(`UPDATE public.${table} SET enabled = $2 WHERE id = $1 RETURNING id, enabled`, [id, enabled]);
+const editableColumns = {
+  applications: {
+    name: "name", slug: "slug", description: "description",
+    rate_limit_per_minute: "rate_limit_per_minute", enabled: "enabled",
+  },
+  "identity-providers": {
+    consumer_application_id: "consumer_application_id", name: "name", issuer: "issuer",
+    jwks_uri: "jwks_uri", audiences: "audiences", scopes_claim: "scopes_claim",
+    roles_claim: "roles_claim", enabled: "enabled",
+  },
+  providers: {
+    name: "name", slug: "slug", description: "description", base_url: "base_url",
+    auth_type: "auth_type", auth_config: "auth_config", timeout_ms: "timeout_ms",
+    sse_timeout_ms: "sse_timeout_ms", rate_limit_per_minute: "rate_limit_per_minute", enabled: "enabled",
+  },
+  routes: {
+    provider_id: "provider_id", method: "method", path_template: "path_template",
+    operation_id: "operation_id", description: "description", required_scopes: "required_scopes",
+    allowed_request_headers: "allowed_request_headers", allowed_response_headers: "allowed_response_headers",
+    supports_sse: "supports_sse", enabled: "enabled",
+  },
+  access: {
+    consumer_application_id: "consumer_application_id", provider_id: "provider_id",
+    rate_limit_per_minute: "rate_limit_per_minute", enabled: "enabled",
+  },
+  origins: {
+    consumer_application_id: "consumer_application_id", origin: "origin", enabled: "enabled",
+  },
+} as const;
+
+export async function updateCatalogResource(
+  resource: keyof typeof editableColumns,
+  id: string,
+  input: Record<string, unknown>,
+): Promise<Row | null> {
+  const columns = editableColumns[resource] as Record<string, string>;
+  const values: unknown[] = [id];
+  const assignments = Object.entries(input).map(([field, value]) => {
+    const column = columns[field];
+    if (!column) throw new Error("Unsupported resource field");
+    values.push(field === "auth_config" ? JSON.stringify(value) : value);
+    return `${column} = $${values.length}${field === "auth_config" ? "::jsonb" : ""}`;
+  });
+  const row = await queryOne<Row>(
+    `UPDATE public.${resourceTables[resource]} SET ${assignments.join(", ")} WHERE id = $1 RETURNING *`,
+    values,
+  );
+  return row ? sanitizeCatalogRow(resource, row) : null;
+}
+
+const deletableTables = {
+  "identity-providers": "identity_providers",
+  routes: "provider_routes",
+  access: "application_provider_access",
+  origins: "application_origins",
+} as const;
+
+export type DeletableCatalogResource = keyof typeof deletableTables;
+
+export function isDeletableCatalogResource(value: string): value is DeletableCatalogResource {
+  return Object.hasOwn(deletableTables, value);
+}
+
+export function deleteCatalogResource(resource: DeletableCatalogResource, id: string): Promise<{ id: string } | null> {
+  return queryOne(`DELETE FROM public.${deletableTables[resource]} WHERE id = $1 RETURNING id`, [id]);
 }

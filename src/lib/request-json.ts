@@ -2,7 +2,10 @@ import { z } from "zod";
 
 import { GatewayError } from "@/lib/errors";
 
-export async function parseRequestJson<T>(request: Request, schema: z.ZodType<T>): Promise<T> {
+export async function parseRequestJson<Schema extends z.ZodType>(
+  request: Request,
+  schema: Schema,
+): Promise<z.output<Schema>> {
   let body: unknown;
   try {
     body = await request.json();

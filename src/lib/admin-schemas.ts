@@ -32,7 +32,11 @@ export const providerSchema = z
     description: z.string().max(500).nullable().optional(),
     base_url: z.url(),
     auth_type: z.enum(["none", "api_key_header", "api_key_query", "bearer_static"]),
-    auth_config: z.record(z.string(), z.unknown()).default({}),
+    auth_config: z.object({
+      headerName: z.string().min(1).max(100).optional(),
+      queryName: z.string().min(1).max(100).optional(),
+      prefix: z.string().max(50).optional(),
+    }).strict().default({}),
     timeout_ms: z.coerce.number().int().min(1000).max(25_000).default(25_000),
     sse_timeout_ms: z.coerce.number().int().min(1000).max(300_000).default(300_000),
     rate_limit_per_minute: z.coerce.number().int().min(1).max(100_000).default(60),
@@ -105,3 +109,12 @@ export const applicationApiKeySchema = z.object({
     (value) => Date.parse(value) > Date.now(), "Expiration must be in the future",
   ).nullable().optional(),
 });
+
+const nonEmptyPatch = (value: object) => Object.keys(value).length > 0;
+
+export const applicationPatchSchema = consumerApplicationSchema.partial().strict().refine(nonEmptyPatch);
+export const identityProviderPatchSchema = identityProviderSchema.partial().strict().refine(nonEmptyPatch);
+export const providerPatchSchema = providerSchema.partial().strict().refine(nonEmptyPatch);
+export const providerRoutePatchSchema = providerRouteSchema.omit({ source: true }).partial().strict().refine(nonEmptyPatch);
+export const providerAccessPatchSchema = providerAccessSchema.partial().strict().refine(nonEmptyPatch);
+export const applicationOriginPatchSchema = applicationOriginSchema.partial().strict().refine(nonEmptyPatch);
